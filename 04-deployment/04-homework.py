@@ -7,18 +7,19 @@
 import pickle
 import pandas as pd
 import sklearn
+import sys
 
 
 # In[2]:
 
 
-sklearn.__version__
+#sklearn.__version__
 
 
 # In[3]:
 
 
-get_ipython().system('python -V')
+#get_ipython().system('python -V')
 
 
 # In[5]:
@@ -31,19 +32,19 @@ with open('model.bin', 'rb') as f_in:
 # In[6]:
 
 
-get_ipython().system('pip show scikit-learn')
+#get_ipython().system('pip show scikit-learn')
 
 
 # In[7]:
 
 
-get_ipython().system('pip install --upgrade scikit-learn==1.5.0')
+#get_ipython().system('pip install --upgrade scikit-learn==1.5.0')
 
 
 # In[8]:
 
 
-get_ipython().system('pip show scikit-learn')
+#get_ipython().system('pip show scikit-learn')
 
 
 # In[9]:
@@ -95,6 +96,7 @@ y_pred
 
 
 y_pred.std()
+print('mean predicted duration:',y_pred.mean())
 
 
 # Q1. Notebook
@@ -116,8 +118,16 @@ y_pred.std()
 # In[16]:
 
 
-year = 2023
-month = 3
+#year = 2023
+#month = 3
+
+year = int (sys.argv[1]) 
+month = int (sys.argv[2])  
+ 
+
+ 
+
+ 
 
 input_file = f'https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_{year:04d}-{month:02d}.parquet'
 output_file = f'output/yellow_tripdata_{year:04d}-{month:02d}.parquet'
@@ -126,7 +136,7 @@ output_file = f'output/yellow_tripdata_{year:04d}-{month:02d}.parquet'
 # In[17]:
 
 
-get_ipython().system('mkdir output')
+#get_ipython().system('mkdir output')
 
 
 # In[18]:
@@ -151,7 +161,7 @@ df_result['predicted_duration'] = y_pred
 
 
 # In[21]:
-
+#print('mean predicted duration:',y_pred.mean())
 
 df_result.to_parquet(
     output_file,
@@ -161,10 +171,11 @@ df_result.to_parquet(
 )
 
 
+
 # In[22]:
 
 
-get_ipython().system('ls -lh output')
+#get_ipython().system('ls -lh output')
 
 
 # Q2. Preparing the output
@@ -203,7 +214,7 @@ get_ipython().system('ls -lh output')
 # In[23]:
 
 
-jupyter nbconvert --to script 04-homework.ipynb
+#jupyter nbconvert --to script 04-homework.ipynb
 
 
 # In[ ]:
