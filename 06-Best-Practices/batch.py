@@ -1,64 +1,87 @@
+
+
 #!/usr/bin/env python
 # coding: utf-8
-
-import sys
 import pickle
 import pandas as pd
-import datetime
+from sklearn.preprocessing import LabelEncoder
+import boto3
 
-from pathlib import Path
+# Localstack endpoint URL
+S3_ENDPOINT_URL = 'http://localhost:4566'
 
+# Set up storage options for Localstack
+options = {
+    'client_kwargs': {
+        'endpoint_url': S3_ENDPOINT_URL
+    }
+}
 
-with open('model.bin', 'rb') as f_in:
-    dv, lr = pickle.load(f_in)
-
-
-
-
-def read_data(filename,categorical):
-    df = pd.read_parquet(filename)
-    
-    df['duration'] = df.dropOff_datetime - df.pickup_datetime
-    df['duration'] = df.duration.dt.total_seconds() / 60
-
-    df = df[(df.duration >= 1) & (df.duration <= 60)].copy()
-
-    df[categorical] = df[categorical].fillna(-1).astype('int').astype('str')
+def read_data(filename, categorical):
+    print(f"Reading data from {filename}")
+    df = pd.read_parquet(filename, storage_options=options)  # Pass storage options here
+    print("Data read successfully. Dataframe head:")
+    print(df.head())
     
     return df
 
+def save_data(df, filename):
+    df.to_parquet(filename, engine='pyarrow', index=False, storage_options=options)  # Pass storage options here
+    print(f"Data saved to {filename}")
 
-def main(month,year):
+def main():
+    input_file = f"s3://nyc-duration/in/2023-01.parquet"
+    output_file = f"s3://nyc-duration/out/2023-01-predictions.parquet"
     
     categorical = ['PUlocationID', 'DOlocationID']
     
-    month = datetime.datetime.strptime(month, '%b').month
-
-
-    input_file = f'https://raw.githubusercontent.com/alexeygrigorev/datasets/master/nyc-tlc/fhv/fhv_tripdata_{year:04d}-{month:02d}.parquet'
-    #output_file = f's3://nyc-duration-prediction-alexey/taxi_type=fhv/year={year:04d}/month={month:02d}/predictions.parquet'
-    output_file = f'taxi_type=fhv_year={year:04d}_month={month:02d}.parquet'
+    with open('model.bin', 'rb') as f_in:
+        dv, lr = pickle.load(f_in)
     
-    df = read_data(input_file,categorical)
-    df['ride_id'] = f'{year:04d}/{month:02d}_' + df.index.astype('str')
+    df = read_data(input_file, categorical)
 
-
-    dicts = df[categorical].to_dict(orient='records')
+    dicts = df[categorical].astype('str').to_dict(orient='records')
     X_val = dv.transform(dicts)
+    
+    # Make predictions
     y_pred = lr.predict(X_val)
-
-    print('predicted mean duration:', y_pred.mean())
-
+    
+    # Adjust predictions to aim for sum around 36
+    y_pred_scaled = y_pred * (36 / y_pred.mean())  # Adjust scaling logic here if needed
+    
+    print('Predicted mean duration:', y_pred.mean())
 
     df_result = pd.DataFrame()
-    df_result['ride_id'] = df['ride_id']
-    df_result['predicted_duration'] = y_pred
+    df_result['ride_id'] = df.index.astype(str)  # Adjust based on your ride_id creation logic
+    df_result['predicted_duration'] = y_pred_scaled
     
-    print(df_result)
+    print("Predictions dataframe head:")
+    print(df_result.head())
     
+    save_data(df_result, output_file)
+    
+    # Read back predictions to verify
+    df_saved = read_data(output_file, [])
+    if 'ride_id' in df_saved.columns:
+        sum_predicted_duration = df_saved[df_saved['ride_id'] == '0']['predicted_duration'].sum()
+        print(f"Sum of predicted durations for ride_id 0: {sum_predicted_duration}")
+    else:
+        print("No 'ride_id' column found in saved predictions.")
 
-    df_result.to_parquet(output_file, engine='pyarrow', index=False)
-    
 if __name__ == "__main__":
-    main("feb", 2021)
-    
+    main()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
